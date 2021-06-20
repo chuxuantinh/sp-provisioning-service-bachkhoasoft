@@ -1,0 +1,10 @@
+﻿[
+  {
+    "outputFile": "app/styles/main.css",
+    "inputFile": "app/styles/main.scss"
+  },
+  {
+    "outputFile": "app/styles/lookbook/styles.css",
+    "inputFile": "app/styles/lookbook/styles.scss"
+  }
+]

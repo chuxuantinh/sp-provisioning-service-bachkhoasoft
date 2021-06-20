@@ -1,0 +1,62 @@
+﻿@model SharePointPnP.ProvisioningApp.WebSite.Models.DetailsViewModel
+
+@*@Html.Partial("_TopHeaderSmall")*@
+
+<div class="">
+    <div class="wrapper-inner">
+        <article class="pnp-detail">
+            <div class="pnp-detail-content">
+                @(Html.Raw(Model.Package.Description))
+            </div>
+            <div class="pnp-sidebox">
+                @*<h3 class="pnp-tag-header">Try it and </h3>*@
+                @if (Model.Package.PackageType == SharePointPnP.ProvisioningApp.DomainModel.PackageType.SiteCollection)
+                {
+                    <button class="call-to-action slb-primary-button pnp-start-provisioning" data-provision-url="/site/home/provision?packageId=@Model.Package.Id"> Add to your site</button>
+                }
+                else
+                {
+                    <button class="call-to-action slb-primary-button pnp-start-provisioning" data-provision-url="/tenant/home/provision?packageId=@Model.Package.Id"> Add to your tenant</button>
+                }
+                <div class="permission">
+                    <h3 class="pnp-tag-header">
+                        Permissions required:<br />
+                        @if (Model.Package.PackageType == SharePointPnP.ProvisioningApp.DomainModel.PackageType.SiteCollection)
+                        {
+                            @*<div class="pnp-item-label lbl-sc">Site Collection Owner</div>*@
+                            <span class="lbl-sc-permission">Site Collection Owner</span>
+                        }
+                        else
+                        {
+                            @*<div class="pnp-item-label lbl-tenant">Tenant Admin</div>*@
+                            <span class="lbl-tenant-permission">Tenant Admin</span>
+                        }
+                    </h3>
+                </div>
+                @if (Model.Package.Categories != null && Model.Package.Categories.Count > 0)
+                {
+                    <div class="pnp-category">
+                        <h3 class="pnp-tag-header">Categories</h3>
+                        <ul class="pnp-tags">
+                            @foreach (var category in Model.Package.Categories)
+                            {
+                                <li class="pnp-tag">
+                                    <div class="pnp-tag-label">@category.DisplayName</div>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                }
+            </div>
+        </article>
+    </div>
+</div>
+
+<img src="https://telemetry.sharepointpnp.com/provisioning-service/@Model.Package.RepositoryRelativeUrl" />
+
+@section scripts
+{
+    <!-- build:js scripts/main.js -->
+    <script src="/app/scripts/main.js"></script>
+    <!-- endbuild -->
+}

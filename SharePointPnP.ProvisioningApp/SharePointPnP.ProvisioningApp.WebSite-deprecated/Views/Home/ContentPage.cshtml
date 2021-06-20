@@ -1,0 +1,20 @@
+﻿@model SharePointPnP.ProvisioningApp.WebSite.Models.ContentPageViewModel
+
+@*@Html.Partial("_TopHeaderSmall")*@
+
+<div class="">
+    <div class="wrapper-inner">
+        <article class="pnp-detail">
+            <div class="pnp-detail-content">
+                @(Html.Raw(Model.Content))
+            </div>
+        </article>
+    </div>
+</div>
+
+@section scripts
+{
+    <!-- build:js scripts/main.js -->
+    <script src="/app/scripts/main.js"></script>
+    <!-- endbuild -->
+}

@@ -1,0 +1,49 @@
+﻿@model System.Web.Mvc.HandleErrorInfo
+
+@{
+    ViewBag.Title = "Error";
+}
+
+<section class="provisioning-top-section">
+    <div class="top-section-area teal-header d-flex align-items-center">
+        <div class="section-text">
+            <div>
+                <div class="provisioning-title">SharePoint provisioning service</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Inner Content Wrapper -->
+<div class="">
+    <div class="wrapper-inner">
+        <article class="pnp-error">
+            <h1>Sorry, something went wrong</h1>
+            <div class="errorMessage">
+                There was an unexpected issue.<br />
+                @(Model?.Exception != null ? Model.Exception.Message : "")
+            </div>
+            @*<div class="showErrorLink"><a href="#">Click here to see more details</a></div>
+            <div class="errorStack" style="display: none;">
+                <hr />
+                <div>@(Model?.Exception != null ? Model.Exception.StackTrace : "")</div>
+            </div>*@
+        </article>
+    </div>
+</div>
+
+@*<script language="javascript">
+
+    document.addEventListener("DOMContentLoaded", function (event) {
+
+        document.body.querySelector(".errorStack").style.display = 'none';
+
+        document.body.querySelector(".showErrorLink a").addEventListener("click", function (e) {
+            e.preventDefault();
+            document.body.querySelector(".errorStack").style.display = 'block';
+            document.body.querySelector(".showErrorLink a").style.display = 'none';
+        });
+    })
+
+</script>*@
+

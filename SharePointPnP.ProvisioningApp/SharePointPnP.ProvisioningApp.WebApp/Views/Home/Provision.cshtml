@@ -1,0 +1,1277 @@
+﻿@model SharePointPnP.ProvisioningApp.Infrastructure.DomainModel.Provisioning.ProvisioningActionModel
+@using SharePointPnP.ProvisioningApp.WebApp.Models
+
+@{
+    ViewBag.ReturnUrl = ViewContext.HttpContext.Request.QueryString["returnUrl"];
+}
+
+@functions {
+    public IEnumerable<SelectListItem> GetAvailableThemes()
+    {
+        var themes = (from t in Model.Themes
+                      select new SelectListItem
+                      {
+                          Text = t,
+                          Value = t,
+                          Selected = (Model.SelectedTheme == t)
+                      }).ToList();
+        themes.Insert(0, new SelectListItem
+        {
+            Text = "(Select a Theme)",
+            Value = "********",
+            Selected = String.IsNullOrEmpty(Model.SelectedTheme)
+        });
+
+        return (themes);
+    }
+}
+
+<section class="provisioning-top-section">
+    <div class="top-section-area teal-header d-flex align-items-center">
+        <div class="section-text">
+            <div>
+                <div class="provisioning-title">SharePoint provisioning service</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Inner Content Wrapper -->
+<div class="">
+    <div class="wrapper-inner">
+        @*<div class="pnp-svcteaser">
+                <div class="pnp-svcteaser-inner">
+                    @(Html.Raw(Model.ProvisionDescription))
+                    @if (!String.IsNullOrEmpty(Model.Instructions))
+                    {
+                        <hr />
+                        @(Html.Raw(Model.Instructions))
+                    }
+                </div>
+            </div>*@
+        <div class="pnp-form">
+            <div class="pnp-svcteaser-inner">
+                @using (Html.BeginForm("Provision", "Home", new { returnUrl = Model.ReturnUrl, source = Model.Source }, FormMethod.Post, new { enctype = "multipart/form-data" }))
+                {
+                    @Html.AntiForgeryToken()
+
+                    @Html.HiddenFor(m => m.PackageId)
+                    @Html.HiddenFor(m => m.TenantId)
+                    @Html.HiddenFor(m => m.UserPrincipalName)
+                    @Html.HiddenFor(m => m.ActionType)
+                    @Html.HiddenFor(m => m.DisplayName)
+                    @Html.HiddenFor(m => m.MetadataPropertiesJson)
+                    @Html.HiddenFor(m => m.UserIsTenantAdmin)
+                    @Html.HiddenFor(m => m.UserIsSPOAdmin)
+                    @Html.HiddenFor(m => m.SPORootSiteUrl)
+                    @Html.HiddenFor(m => m.TargetSiteAlreadyExists)
+                    @Html.HiddenFor(m => m.TargetSiteBaseTemplateId)
+                    @Html.HiddenFor(m => m.ForceNewSite)
+                    @Html.HiddenFor(m => m.ForceExistingSite)
+                    @Html.HiddenFor(m => m.MatchingSiteBaseTemplateId)
+                    @Html.HiddenFor(m => m.ReturnUrl)
+                    @Html.HiddenFor(m => m.Source)
+
+                <table>
+                    <tr>
+                        <th class="provisioning-local-header-box">
+                            <div class="provisioning-local-header">
+                                <!-- Pre-Requirements -->
+                                @if (Model.PreRequirementIssues != null && Model.PreRequirementIssues.Count > 0)
+                                {
+                                    <div class="title">Pre-requirements not fulfilled!</div>
+
+                                    @*<div>Issues #: @Model.PreRequirementIssues.Count</div>*@
+
+                                    <div class="normal-text">
+                                        @foreach (var preReqIssue in Model.PreRequirementIssues)
+                                        {
+                                            @Html.Raw(preReqIssue);
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="title">@(!String.IsNullOrEmpty(Model.ProvisionPageTitle) ? Html.Raw(Model.ProvisionPageTitle) : Html.Raw("Great choice!"))</div>
+                                    <div class="subtitle">@(!String.IsNullOrEmpty(Model.ProvisionPageSubTitle) ? Html.Raw(Model.ProvisionPageSubTitle) : Html.Raw("We just need a bit of information before we start provisioning"))</div>
+                                    <p class="normal-text">
+                                        @(!String.IsNullOrEmpty(Model.ProvisionPageText) ? Html.Raw(Model.ProvisionPageText) : Html.Raw("The following settings are used for your example site. You can keep them as is, or change them to suit your needs."))
+                                    </p>
+                                }
+                            </div>
+                        </th>
+                        <td>
+                            <div class="hero-image aspect-ratio-wrapper">
+                                <div class="aspect-ratio-image-wrapper">
+                                    <img src="@Model.PackageImagePreviewUrl"
+                                         alt="@Model.DisplayName">
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+
+                    @if (Model.PreRequirementIssues == null || Model.PreRequirementIssues.Count == 0)
+                    {
+                        <tr>
+                            <th>
+                                @Html.LabelFor(m => m.NotificationEmail)
+                                <div class="pnp-field-description">Provide an email address to get notified when provisioning is complete</div>
+                            </th>
+                            <td>
+                                @Html.TextBoxFor(m => m.NotificationEmail, new { @class = "pnp-tb" })
+                            </td>
+                        </tr>
+
+                        {
+                            int i = 0;
+                            foreach (var parameter in Model.PackageProperties)
+                            {
+                                if (Model.MetadataProperties.ContainsKey(parameter.Key))
+                                {
+                                    <tr>
+                                        <th>
+                                            <input type="hidden" name="PackageProperties[@i].Key" value="@parameter.Key" />
+                                            <label class="ms-Label pnp-field-label" for="PackageProperties[@i].Key">@(Model.MetadataProperties[parameter.Key].Caption)</label>
+                                            <div class="pnp-field-description">@(Html.Raw(Model.MetadataProperties[parameter.Key].Description))</div>
+                                        </th>
+                                        <td>
+                                            @if (String.IsNullOrEmpty(Model.MetadataProperties[parameter.Key].Editor))
+                                            {
+                                                <input name="PackageProperties[@i].Value" value="@parameter.Value" class="pnp-tb" />
+                                            }
+                                            else
+                                            {
+                                                @Html.Partial($"EditorTemplates/{Model.MetadataProperties[parameter.Key].Editor}", new TemplateParameterModel { Index = i, ParameterKey = parameter.Key, ParameterValue = parameter.Value, MetadataProperty = Model.MetadataProperties[parameter.Key], SPORootSiteUrl = Model.SPORootSiteUrl })
+                                            }
+                                        </td>
+                                    </tr>
+                                    i++;
+                                }
+                            }
+                        }
+
+                        if ((Model.UserIsTenantAdmin || Model.UserIsSPOAdmin) &&
+                            Model.Themes != null && Model.Themes.Count > 0)
+                        {
+                            <tr>
+                                <th>
+                                    Theme
+                                    <div class="pnp-field-description">Would you like to apply a company custom theme to the target site(s)?</div>
+                                </th>
+                                <td>
+                                    @Html.EditorFor(m => m.ApplyTheme)
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>
+                                    @*@Html.LabelFor(m => m.SelectedTheme)*@
+                                    <div class="pnp-field-description">If you have a custom theme, you can apply it to the example site(s) now or apply a theme and other branding options later</div>
+                                </th>
+                                <td>
+                                    @Html.DropDownListFor(m => m.SelectedTheme, GetAvailableThemes(), new { @class = "pnp-tb" })
+                                </td>
+                            </tr>
+                            @*<tr>
+                                    <th>
+                                        Apply custom theme
+                                        <div class="pnp-field-description">Enable this flag to create and apply a custom Theme</div>
+                                    </th>
+                                    <td>
+                                        @Html.EditorFor(m => m.ApplyCustomTheme)
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>
+                                        @Html.LabelFor(m => m.ThemePrimaryColor)
+                                        <div class="pnp-field-description">Select the Primary Color for the custom Theme</div>
+                                    </th>
+                                    <td>
+                                        <span class="pnp-colorpreview" rel="@Html.IdFor(m => m.ThemePrimaryColor)"></span>
+                                        @Html.TextBoxFor(m => m.ThemePrimaryColor, new { @class = "pnp-tb" })
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>
+                                        @Html.LabelFor(m => m.ThemeBodyTextColor)
+                                        <div class="pnp-field-description">Select the Body Text Color for the custom Theme</div>
+                                    </th>
+                                    <td>
+                                        <span class="pnp-colorpreview" rel="@Html.IdFor(m => m.ThemeBodyTextColor)"></span>
+                                        @Html.TextBoxFor(m => m.ThemeBodyTextColor, new { @class = "pnp-tb" })
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>
+                                        @Html.LabelFor(m => m.ThemeBodyBackgroundColor)
+                                        <div class="pnp-field-description">Select the Body Background Color for the custom Theme</div>
+                                    </th>
+                                    <td>
+                                        <span class="pnp-colorpreview" rel="@Html.IdFor(m => m.ThemeBodyBackgroundColor)"></span>
+                                        @Html.TextBoxFor(m => m.ThemeBodyBackgroundColor, new { @class = "pnp-tb" })
+                                    </td>
+                                </tr>*@
+                            @*
+                                <tr>
+                                    <th>
+                                        <label for="CustomLogoFile">Logo</label>
+                                    </th>
+                                    <td>
+                                        <input type="file" name="CustomLogoFile" id="CustomLogoFile" class="pnp-tb" />
+                                    </td>
+                                </tr>
+                            *@
+                        }
+                        @*<tr>
+                                <td colspan="2">
+                                    <div class="sectionTitleDivider"><hr class="sectionTitleDivider" /></div>
+                                </td>
+                            </tr>*@
+                        <tr>
+                            <td>
+                            </td>
+                            <td class="provisioning-commands">
+                                <input type="button" id="cancelButton" class="pnp-btn-provision slb-button" value="Cancel" />
+                                <input type="button" id="provisionButton" class="pnp-btn-provision slb-primary-button" value="@(Model.ForceExistingSite ? "Add to your site" : "Provision")" />
+                            </td>
+                        </tr>
+                    }
+                </table>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="confirmationDialog" class="confirmationDialog hide">
+    <span onclick="document.getElementById('cancelDialog').click()" class="dialogCloseButton topright">&times;</span>
+    <div class="confirmationDialogContent">
+        @(Html.Raw(Model.ProvisionRecap))
+        <br />
+    </div>
+    <div class="dialog-commands">
+        <input type="button" id="cancelDialog" class="pnp-btn-provision slb-button" value="Cancel" />
+        <input type="button" id="confirmDialog" class="pnp-btn-provision slb-primary-button" value="Confirm" />
+    </div>
+</div>
+
+<div id="workingOnItSiteDialog" class="workingOnItSiteDialog hide">
+    <div class="workingOnItSiteDialogContent">
+        <img width="32" height="32" src="data:image/gif;base64,R0lGODlhEAAQAIAAAFLOQv///yH/C05FVFNDQVBFMi4wAwEAAAAh+QQFCgABACwJAAIAAgACAAACAoRRACH5BAUKAAEALAwABQACAAIAAAIChFEAIfkEBQoAAQAsDAAJAAIAAgAAAgKEUQAh+QQFCgABACwJAAwAAgACAAACAoRRACH5BAUKAAEALAUADAACAAIAAAIChFEAIfkEBQoAAQAsAgAJAAIAAgAAAgKEUQAh+QQFCgABACwCAAUAAgACAAACAoRRACH5BAkKAAEALAIAAgAMAAwAAAINjAFne8kPo5y02ouzLQAh+QQJCgABACwCAAIADAAMAAACF4wBphvID1uCyNEZM7Ov4v1p0hGOZlAAACH5BAkKAAEALAIAAgAMAAwAAAIUjAGmG8gPW4qS2rscRPp1rH3H1BUAIfkECQoAAQAsAgACAAkADAAAAhGMAaaX64peiLJa6rCVFHdQAAAh+QQJCgABACwCAAIABQAMAAACDYwBFqiX3mJjUM63QAEAIfkECQoAAQAsAgACAAUACQAAAgqMARaol95iY9AUACH5BAkKAAEALAIAAgAFAAUAAAIHjAEWqJeuCgAh+QQJCgABACwFAAIAAgACAAACAoRRADs=" />
+        <span id="workingOnItSiteDialogMessage"></span>
+    </div>
+</div>
+
+<div id="siteExistsDialog" class="siteExistsDialog hide">
+    <span onclick="document.getElementById('siteExistsConfirmDialog').click()" class="dialogCloseButton topright">&times;</span>
+    <h2><span id="siteExistsDialogTitle">Site URL already in use</span></h2>
+    <div id="siteExistsDialogContent" class="siteExistsDialogContent"></div>
+    <div class="dialog-commands">
+        @*<input type="button" id="siteExistsCancelDialog" class="pnp-btn-provision slb-button" value="Cancel" />*@
+        <input type="button" id="siteExistsConfirmDialog" class="pnp-btn-provision okDialog slb-primary-button" value="OK" />
+    </div>
+</div>
+
+<div id="missingPreReqsDialog" class="missingPreReqsDialog hide">
+    <span onclick="document.getElementById('acknowledgeDialog').click()" class="dialogCloseButton topright">&times;</span>
+    <div class="missingPreReqsDialogContent">
+        @(Html.Raw(Model.MissingPreReqsHeader))
+        <div id="missingPreReqsList"></div>
+        @(Html.Raw(Model.MissingPreReqsFooter))
+    </div>
+    <br />
+    <div class="dialog-commands">
+        <input type="button" id="acknowledgeDialog" class="pnp-btn-acknowledge slb-primary-button" value="Ok" />
+    </div>
+</div>
+
+<div id="dialogOverlay" class="dialogModalOverlay hide">
+</div>
+
+@section scripts
+{
+    <!-- build:js scripts/main.js -->
+    @*<script src="/app/scripts/main.js"></script>*@
+    <!-- endbuild -->
+
+<script>
+
+        // global state variable
+        var focusingOutToProvision = false;
+        var forceSiteExists = false;
+
+        // defines whether the field is disabled or not
+        function fieldIsDisabled(field) {
+            return (field.hasAttribute('disabled'));
+        }
+
+        // disables a field
+        function disableField(field) {
+            if (field) {
+                if (!fieldIsDisabled(field)) {
+                    field.setAttribute('disabled', '');
+                    // cleanup any validation exception
+                    if (field.classList.contains("invalid")) {
+                        field.classList.toggle("invalid");
+                    }
+                }
+            }
+        }
+
+        // enables a field
+        function enableField(field) {
+            if (field) {
+                if (fieldIsDisabled(field)) {
+                    field.removeAttribute('disabled');
+                }
+            }
+        }
+
+        // disables the Provision button
+        function disableProvisionButton() {
+            var provisionButton = this.document.getElementById('provisionButton');
+            if (provisionButton) {
+                // set the disabled style
+                if (!provisionButton.classList.contains("is-disabled")) {
+                    provisionButton.classList.toggle("is-disabled");
+                }
+                // disable the command
+                if (!provisionButton.hasAttribute('disabled')) {
+                    provisionButton.setAttribute('disabled', '');
+                }
+            }
+        }
+
+        // enables the Provision button
+        function enableProvisionButton() {
+            var provisionButton = this.document.getElementById('provisionButton');
+            if (provisionButton) {
+                // remove the disabled style
+                if (provisionButton.classList.contains("is-disabled")) {
+                    provisionButton.classList.toggle("is-disabled");
+                }
+                // enable the command
+                if (provisionButton.hasAttribute('disabled')) {
+                    provisionButton.removeAttribute('disabled');
+                }
+            }
+        }
+
+        // toggles the enabled/disabled status of a field
+        function toggleFieldStatus(field) {
+            if (field) {
+                if (!fieldIsDisabled(field)) {
+                    disableField(field);
+                }
+                else {
+                    enableField(field);
+                }
+            }
+        }
+
+        // returns the value of a field, if any
+        function getFieldValue(field) {
+            if (field) {
+                return (field.value);
+            }
+            else {
+                return ('');
+            }
+        }
+
+        // determines whether a string is valid against a regex rule
+        function regexIsValid(value, regexRule) {
+            var regex = new RegExp(regexRule);
+            return (value.match(regex) && value.length > 0);
+        }
+
+        function showDialogOverlay() {
+            var dialogOverlay = document.getElementById('dialogOverlay');
+            if (dialogOverlay && dialogOverlay.classList.contains('hide')) {
+                dialogOverlay.classList.toggle('hide');
+                dialogOverlay.classList.toggle('show');
+            }
+        }
+
+        function hideDialogOverlay() {
+            var dialogOverlay = document.getElementById('dialogOverlay');
+            if (dialogOverlay && dialogOverlay.classList.contains('show')) {
+                dialogOverlay.classList.toggle('hide');
+                dialogOverlay.classList.toggle('show');
+            }
+        }
+
+        // shows the Working On It dialog
+        function showWorkingOnIt(message) {
+            var workingOnItSiteDialog = document.getElementById('workingOnItSiteDialog');
+            var workingOnItSiteDialogMessage = document.getElementById('workingOnItSiteDialogMessage');
+            if (workingOnItSiteDialog && workingOnItSiteDialogMessage &&
+                workingOnItSiteDialog.classList.contains('hide')) {
+
+                workingOnItSiteDialog.classList.toggle('hide');
+                workingOnItSiteDialog.classList.toggle('show');
+
+                workingOnItSiteDialogMessage.innerHTML = "&nbsp;" + message;
+
+                showDialogOverlay();
+            }
+        }
+
+        // hides the Working On It dialog
+        function hideWorkingOnIt() {
+            var workingOnItSiteDialog = document.getElementById('workingOnItSiteDialog');
+            if (workingOnItSiteDialog && workingOnItSiteDialog.classList.contains('show')) {
+                workingOnItSiteDialog.classList.toggle('hide');
+                workingOnItSiteDialog.classList.toggle('show');
+
+                hideDialogOverlay();
+            }
+        }
+
+        function showSiteExistsDialog(title, message) {
+            var siteExistsDialog = document.getElementById('siteExistsDialog');
+
+            if (siteExistsDialog && siteExistsDialog.classList.contains('hide')) {
+                siteExistsDialog.classList.toggle('hide');
+                siteExistsDialog.classList.toggle('show');
+
+                var siteExistsDialogTitle = document.getElementById('siteExistsDialogTitle');
+                if (title != undefined && title != "") {
+                    siteExistsDialogTitle.innerHTML = title;
+                }
+
+                var siteExistsDialogContent = document.getElementById('siteExistsDialogContent');
+                siteExistsDialogContent.innerHTML = ((message != undefined && message != "") ? message : "@Html.Raw(Resources.Messages.TargetSiteAlreadyExists)") + "<br/>&nbsp;";
+
+                showDialogOverlay();
+            }
+        }
+
+        function emailIsValid(email) {
+            // regex for Email
+            var regex = new RegExp(/^((?!\.)[\w-_.]*[^.])(@@\w+)(\.\w+(\.\w+)?[^.\W])$/);
+
+            // check for valid email
+            return (email.match(regex) && email.length > 0);
+        }
+
+        // determines whether a URL is valid for SharePoint or not
+        function urlIsValidForSPO(url) {
+
+            // regex for COM1-COM9
+            var comNregex = new RegExp(/^((?!com[1-9]).)*$/, 'i');
+            // regex for LPT1-LPT9
+            var lptNregex = new RegExp(/^((?!lpt[1-9]).)*$/, 'i');
+            // regex for URL
+            var regex = new RegExp(/^(\w|\-|\.|\_)*$/);
+
+            // exclude all invalid URLs
+            return (url.match(regex) &&
+                url.match(comNregex) &&
+                url.match(lptNregex) &&
+                url.toLowerCase() != 'aux' &&
+                url.toLowerCase() != 'nul' &&
+                url.length > 0);
+        }
+
+        function fullUrlIsValidForSPO(fullUrl) {
+
+            // regex for the full SPO URL
+            var fullUrlregex = new RegExp(/^(?:https:\/\/)[\w.-]+(?:\.[\w\.-]+)+\/(sites|teams)\/[\w\-\._~:\/?#[\]@@!\$&'\(\)\*\+,;=.]+$/, 'i');
+
+            // exclude all invalid URLs
+            return (fullUrl.match(fullUrlregex) &&
+                fullUrl.length > 0);
+        }
+
+        // determines if the the URL is available in SPO or not, using a backend API
+        function urlIsAvailableInSPO(field, url) {
+            fetch('../home/urlIsAvailableInSPO?url=' + encodeURI(url), {
+                method: 'get'
+            })
+                .then(response => {
+                    return (response.json());
+                })
+                .then(data => {
+
+                    // Share the resulting values back with the back-end engine
+                    document.getElementById("TargetSiteAlreadyExists").value = !data.result;
+                    document.getElementById("TargetSiteBaseTemplateId").value = data.baseTemplateId;
+                    var forceExistingSite = document.getElementById("ForceExistingSite").value.toLowerCase() == "true";
+
+                    if (data.result != true || forceExistingSite) {
+
+                        // hide the working on it dialog
+                        hideWorkingOnIt();
+
+                        // prepare the message for the user
+                        var existingSiteValidation = existingSiteValidationMessage();
+
+                        // show the validation exception, if any
+                        if (existingSiteValidation.blockProvisioning) {
+                            if (!field.classList.contains("invalid")) {
+                                field.classList.toggle("invalid");
+                            }
+                        }
+
+                        // toggle the Provision button accordingly
+                        toggleFormSubmitStatus();
+
+                        // show the Site already exists dialog
+                        showSiteExistsDialog(existingSiteValidation.title, existingSiteValidation.message);
+                    }
+                    else {
+                        hideWorkingOnIt();
+
+                        // if the user clicked on the Provision button
+                        if (focusingOutToProvision) {
+                            // reset the focusing out
+                            focusingOutToProvision = false;
+
+                            // try to start the actual provisioning
+                            var provisionButton = document.getElementById('provisionButton');
+                            if (provisionButton != null) {
+                                provisionButton.click();
+                            }
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.log(err);
+                });
+        }
+
+        function existingSiteValidationMessage() {
+
+            var siteAlreadyExists = document.getElementById("TargetSiteAlreadyExists").value.toLowerCase() == "true";
+            var forceNewSite = document.getElementById("ForceNewSite").value.toLowerCase() == "true";
+            var forceExistingSite = document.getElementById("ForceExistingSite").value.toLowerCase() == "true";
+
+            // First of all double-check if the site has to be forcibly created
+            if (siteAlreadyExists && forceNewSite) {
+                return ({
+                    blockProvisioning : true,
+                    message: "@Html.Raw(Resources.Messages.CannotProvisionOntoExistingSite)",
+                    title: "@Html.Raw(Resources.Messages.SiteExistsDialogTitle)"
+                });
+            }
+
+            // Secondly double-check if the site has to exist
+            if (!siteAlreadyExists && forceExistingSite) {
+                return ({
+                    blockProvisioning : true,
+                    message: "@Html.Raw(Resources.Messages.CannotProvisionOntoNotExistingSite)",
+                    title: "@Html.Raw(Resources.Messages.SiteDoesntExistDialogTitle)"
+                });
+            }
+
+            // Then double-check if the site has to exist and it does effectively exist
+            if (siteAlreadyExists && forceExistingSite) {
+                return ({
+                    blockProvisioning : false,
+                    message: "@Html.Raw(Resources.Messages.TargetSiteAlreadyExistsKind)",
+                    title: "@Html.Raw(Resources.Messages.SiteExistsDialogTitleKind)"
+                });
+            }
+
+            // then double-check if we need to force existing site to have a specific template
+            if (siteAlreadyExists) {
+                var existingSiteBaseTemplateId = document.getElementById("TargetSiteBaseTemplateId").value;
+                var matchingSiteBaseTemplateId = document.getElementById("MatchingSiteBaseTemplateId").value;
+
+                // if we don't match the configured Site base template ID, if any
+                if (matchingSiteBaseTemplateId != undefined &&
+                    matchingSiteBaseTemplateId != "" &&
+                    existingSiteBaseTemplateId != matchingSiteBaseTemplateId) {
+                    return ({
+                        blockProvisioning: true,
+                        message: "@Html.Raw(Resources.Messages.TargetSiteBaseTemplateIdIsInvalid)",
+                        title: "@Html.Raw(Resources.Messages.InvalidSiteTemplateDialogTitle)"
+                    });
+                }
+            }
+
+            // otherwise just show a kind warning
+            return ({
+                blockProvisioning: false,
+                message: "@Html.Raw(Resources.Messages.TargetSiteAlreadyExists)",
+                title: "@Html.Raw(Resources.Messages.SiteExistsDialogTitle)"
+            });
+        }
+
+        // determines if the current package can be provisioned in the target tenant/site
+        function canProvisionPackage() {
+
+            // disable the Provision button to avoid multiple concurrent submissions
+            disableProvisionButton();
+
+            // show the Working on it dialog
+            showWorkingOnIt("@Html.Raw(Resources.Messages.ValidatingPreRequisites)");
+
+            fetch('../home/CanProvisionPackage', {
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                method: 'post',
+                body: JSON.stringify({
+                    PackageId: document.getElementById('PackageId').value,
+                    TenantId: document.getElementById('TenantId').value,
+                    UserPrincipalName: document.getElementById('UserPrincipalName').value,
+                    UserIsSPOAdmin: document.getElementById('UserIsSPOAdmin').value,
+                    UserIsTenantAdmin: document.getElementById('UserIsTenantAdmin').value,
+                    SPORootSiteUrl: document.getElementById('SPORootSiteUrl').value
+                }),
+            })
+                .then(response => {
+                    return (response.json());
+                })
+                .then(data => {
+                    console.log(data);
+
+                    // enable back the Provision button
+                    enableProvisionButton();
+
+                    // hide the Working on it dialog
+                    hideWorkingOnIt();
+
+                    if (data != undefined && data.CanProvision) {
+                        // show the confirmation dialog
+                        var confirmationDialog = document.getElementById('confirmationDialog');
+                        if (confirmationDialog && confirmationDialog.classList.contains("hide")) {
+                            confirmationDialog.classList.toggle("hide");
+                            confirmationDialog.classList.toggle("show");
+
+                            showDialogOverlay();
+                        }
+                    }
+                    else {
+                        // show the prerequisites dialog
+                        var missingPreReqsDialog = document.getElementById('missingPreReqsDialog');
+                        var missingPreReqsList = document.getElementById('missingPreReqsList');
+                        if (missingPreReqsList && missingPreReqsDialog &&
+                            missingPreReqsDialog.classList.contains("hide")) {
+
+                            // list the prerequisites
+                            var preReqsIssues = '';
+                            for (var i = 0; i < data.Issues.length; i++) {
+                                preReqsIssues += '<li>' + data.Issues[i].Message + '</li>'
+                            }
+
+                            // show the prerequisites
+                            missingPreReqsList.innerHTML = '<ul>' + preReqsIssues + '</ul>';
+
+                            missingPreReqsDialog.classList.toggle("hide");
+                            missingPreReqsDialog.classList.toggle("show");
+
+                            showDialogOverlay();
+                        }
+                    }
+                })
+                .catch(err => {
+
+                    // enable back the Provision button
+                    enableProvisionButton();
+
+                    // hide the Working on it dialog
+                    hideWorkingOnIt();
+
+                    console.log(err);
+                });
+        }
+
+        // determines whether the form is valid and can be submitted or not
+        function formIsValid() {
+
+            var isValid = true;
+
+            // check the toggles statuses
+            var toggleApplyTheme = document.getElementById('@(Html.IdFor(m => m.ApplyTheme))Div');
+            @*var toggleApplyCustomTheme = document.getElementById('@(Html.IdFor(m => m.ApplyCustomTheme))Div');*@
+
+            // if we have the toggles ...
+            //if (toggleApplyTheme && toggleApplyCustomTheme) {
+            if (toggleApplyTheme) {
+
+                var applyThemeFlag = toggleIsSelected(toggleApplyTheme);
+
+                //var applyCustomThemeFlag = toggleIsSelected(toggleApplyCustomTheme);
+
+                // if there isn't any Theme (custom or existing), we can proceed
+                if (applyThemeFlag) {
+
+                    @*// if there is a custom theme and the custom theme name is missing
+                    // we have a validation exception and we skip submitting the form
+                    if (isValid) {
+                        if (applyCustomThemeFlag) {
+
+                            // get the fields for the custom theme
+                            var themePrimaryColor = document.getElementsByName('@Html.IdFor(m => m.ThemePrimaryColor)')[0];
+                            var themeBodyBackgroundColor = document.getElementsByName('@Html.IdFor(m => m.ThemeBodyBackgroundColor)')[0];
+                            var themeBodyTextColor = document.getElementsByName('@Html.IdFor(m => m.ThemeBodyTextColor)')[0];
+
+                            // cleanup validation exceptions
+                            if (themePrimaryColor.classList.contains("invalid")) {
+                                themePrimaryColor.classList.toggle("invalid");
+                            }
+                            if (themeBodyBackgroundColor.classList.contains("invalid")) {
+                                themeBodyBackgroundColor.classList.toggle("invalid");
+                            }
+                            if (themeBodyTextColor.classList.contains("invalid")) {
+                                themeBodyTextColor.classList.toggle("invalid");
+                            }
+
+                            // check the Theme Primary Color
+                            if (getFieldValue(themePrimaryColor) == '') {
+                                if (!themePrimaryColor.classList.contains("invalid")) {
+                                    themePrimaryColor.classList.toggle("invalid");
+                                }
+                                isValid = false;
+                            }
+
+                            // check the Theme Body Background Color
+                            if (getFieldValue(themeBodyBackgroundColor) == '') {
+                                if (!themeBodyBackgroundColor.classList.contains("invalid")) {
+                                    themeBodyBackgroundColor.classList.toggle("invalid");
+                                }
+                                isValid = false;
+                            }
+
+                            // check the Theme Body Text Color
+                            if (getFieldValue(themeBodyTextColor) == '') {
+                                if (!themeBodyTextColor.classList.contains("invalid")) {
+                                    themeBodyTextColor.classList.toggle("invalid");
+                                }
+                                isValid = false;
+                            }
+                        }
+                    }*@
+
+                    // if there isn't a custom theme and there isn't a currently existing Theme selected
+                    // we have a validation exception and we skip submitting the form, too
+                    //if (isValid && !applyCustomThemeFlag) {
+                    if (isValid) {
+
+                        var selectedTheme = document.getElementById('@Html.IdFor(m => m.SelectedTheme)');
+
+                        // cleanup validation exceptions
+                        if (selectedTheme.classList.contains("invalid")) {
+                            selectedTheme.classList.toggle("invalid");
+                        }
+
+                        // check the Selected Theme
+                        if (getFieldValue(selectedTheme) == '********') {
+                            if (!selectedTheme.classList.contains("invalid")) {
+                                selectedTheme.classList.toggle("invalid");
+                            }
+                            isValid = false;
+                        }
+                    }
+                }
+
+            }
+
+            // if the form is still valid
+            if (isValid) {
+                // check if the form fields are all valid
+                var siteUrlControls = document.getElementsByClassName('siteUrl');
+                for (var i = 0; i < siteUrlControls.length; i++) {
+                    isValid = isValid && !siteUrlControls[i].classList.contains("invalid") && siteUrlControls[i].value != '';
+                }
+
+                var fullSiteUrlControls = document.getElementsByClassName('fullSiteUrl');
+                for (var i = 0; i < fullSiteUrlControls.length; i++) {
+                    isValid = isValid && !fullSiteUrlControls[i].classList.contains("invalid") && (fullSiteUrlControls[i].value == '' || (fullSiteUrlControls[i].value != '' && fullUrlIsValidForSPO(fullSiteUrlControls[i].value)));
+                }
+
+                var regexEditorControls = document.getElementsByClassName('regexEditor');
+                for (var i = 0; i < regexEditorControls.length; i++) {
+                    isValid = isValid && !regexEditorControls[i].classList.contains("invalid");
+                }
+
+                var notificationEmail = document.getElementById('@Html.IdFor(m => m.NotificationEmail)');
+                if (notificationEmail) {
+                    isValid = isValid && !notificationEmail.classList.contains("invalid");
+                }
+            }
+
+            return (isValid);
+        }
+
+        // changes the form submit status whether the form is valid or not
+        function toggleFormSubmitStatus() {
+
+            // toggle the Provision button accordingly
+            if (!formIsValid()) {
+                disableProvisionButton()
+            }
+            else {
+                enableProvisionButton();
+            }
+
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+
+            // validation events for email field
+            var notificationEmail = document.getElementById('@Html.IdFor(m => m.NotificationEmail)');
+            if (notificationEmail) {
+                notificationEmail.addEventListener('keyup', function (e) {
+                    if (emailIsValid(e.target.value)) {
+                        // remove the validation exception, if any
+                        if (e.target.classList.contains("invalid")) {
+                            e.target.classList.toggle("invalid");
+                        }
+                    }
+                    else {
+                        // add the validation exception
+                        if (!e.target.classList.contains("invalid")) {
+                            e.target.classList.toggle("invalid");
+                        }
+                    }
+
+                    // toggle the Provision button accordingly
+                    toggleFormSubmitStatus();
+                });
+            }
+
+            // validation events for any URL control fields
+            var siteUrlControls = document.getElementsByClassName('siteUrl');
+            if (siteUrlControls != null && siteUrlControls.length > 0) {
+                for (var i = 0; i < siteUrlControls.length; i++) {
+                    siteUrlControls[i].addEventListener('keyup', function (e) {
+                        if (urlIsValidForSPO(e.target.value)) {
+                            // remove the validation exception, if any
+                            if (e.target.classList.contains("invalid")) {
+                                e.target.classList.toggle("invalid");
+                            }
+                        }
+                        else {
+                            // add the validation exception
+                            if (!e.target.classList.contains("invalid")) {
+                                e.target.classList.toggle("invalid");
+                            }
+                        }
+
+                        // toggle the Provision button accordingly
+                        toggleFormSubmitStatus();
+
+                        // save the new value in the supporting hidden field
+                        e.target.nextElementSibling.value = e.target.previousElementSibling.value + e.target.value;
+                    });
+                    siteUrlControls[i].addEventListener('focusout', function (e) {
+
+                        // if we lost the focus because the user clicked on the Provision button
+                        if (e.relatedTarget != null && e.relatedTarget.id == "provisionButton") {
+                            // store it in the state variable
+                            focusingOutToProvision = true;
+                        }
+
+                        if (urlIsValidForSPO(e.target.value)) {
+                            // remove the validation exception, if any
+                            if (e.target.classList.contains("invalid")) {
+                                e.target.classList.toggle("invalid");
+                            }
+
+                            // show the Working on it dialog
+                            showWorkingOnIt("@Html.Raw(Resources.Messages.ValidatingSiteUrl)");
+
+                            // check if the URL is available
+                            urlIsAvailableInSPO(e.target, e.target.previousElementSibling.value + e.target.value);
+
+                            // save the new value in the supporting hidden field
+                            e.target.nextElementSibling.value = e.target.previousElementSibling.value + e.target.value;
+                        }
+                        else {
+                            // add the validation exception
+                            if (!e.target.classList.contains("invalid")) {
+                                e.target.classList.toggle("invalid");
+                            }
+                        }
+
+                        // toggle the Provision button accordingly
+                        toggleFormSubmitStatus();
+                    });
+                }
+            }
+
+            // validation events for any URL prefix control fields
+            var siteUrlPrefixControls = document.getElementsByClassName('siteUrlPrefix');
+            if (siteUrlPrefixControls != null && siteUrlPrefixControls.length > 0) {
+                for (var i = 0; i < siteUrlPrefixControls.length; i++) {
+                    siteUrlPrefixControls[i].addEventListener('change', function (e) {
+                        if (urlIsValidForSPO(e.target.nextElementSibling.value)) {
+                            // remove the validation exception, if any
+                            if (e.target.nextElementSibling.classList.contains("invalid")) {
+                                e.target.nextElementSibling.classList.toggle("invalid");
+                            }
+
+                            // show the Working on it dialog
+                            showWorkingOnIt("@Resources.Messages.ValidatingSiteUrl");
+
+                            // check if the URL is available
+                            urlIsAvailableInSPO(e.target, e.target.value + e.target.nextElementSibling.value);
+
+                            // save the new value in the supporting hidden field
+                            e.target.nextElementSibling.nextElementSibling.value = e.target.value + e.target.nextElementSibling.value;
+                        }
+                        else {
+                            // add the validation exception
+                            if (!e.target.nextElementSibling.classList.contains("invalid")) {
+                                e.target.nextElementSibling.classList.toggle("invalid");
+                            }
+                        }
+
+                        // toggle the Provision button accordingly
+                        toggleFormSubmitStatus();
+                    });
+                }
+            }
+
+            // validation events for any Full URL control fields
+            var fullSiteUrlControls = document.getElementsByClassName('fullSiteUrl');
+            if (fullSiteUrlControls != null && fullSiteUrlControls.length > 0) {
+                for (var i = 0; i < fullSiteUrlControls.length; i++) {
+                    fullSiteUrlControls[i].addEventListener('keyup', function (e) {
+
+                        // get the relative URL of the target site
+                        var relativeSiteUrl = e.target.value.substring(@Model.SPORootSiteUrl.Length);
+
+                        if (fullUrlIsValidForSPO(e.target.value)) {
+                            // remove the validation exception, if any
+                            if (e.target.classList.contains("invalid")) {
+                                e.target.classList.toggle("invalid");
+                            }
+                        }
+                        else {
+                            // add the validation exception
+                            if (!e.target.classList.contains("invalid")) {
+                                e.target.classList.toggle("invalid");
+                            }
+                        }
+
+                        // toggle the Provision button accordingly
+                        toggleFormSubmitStatus();
+
+                        // save the new value in the supporting hidden field
+                        e.target.nextElementSibling.value = relativeSiteUrl;
+                    });
+                    fullSiteUrlControls[i].addEventListener('focusout', function (e) {
+
+                        // Double check if the URL starts with https://
+                        if (!e.target.value.startsWith("https://") && !e.target.value.startsWith("http://")) {
+                            e.target.value = "https://" + e.target.value;
+                        }
+
+                        // get the relative URL of the target site
+                        var relativeSiteUrl = e.target.value.substring(@Model.SPORootSiteUrl.Length);
+
+                        // if we lost the focus because the user clicked on the Provision button
+                        if (e.relatedTarget != null && e.relatedTarget.id == "provisionButton") {
+                            // store it in the state variable
+                            focusingOutToProvision = true;
+                            forceSiteExists = true;
+                        }
+
+                        if (fullUrlIsValidForSPO(e.target.value)) {
+                            // remove the validation exception, if any
+                            if (e.target.classList.contains("invalid")) {
+                                e.target.classList.toggle("invalid");
+                            }
+
+                            // show the Working on it dialog
+                            showWorkingOnIt("@Html.Raw(Resources.Messages.ValidatingSiteUrl)");
+
+                            // check if the URL is available
+                            urlIsAvailableInSPO(e.target, relativeSiteUrl);
+
+                            // save the new value in the supporting hidden field
+                            e.target.nextElementSibling.value = relativeSiteUrl;
+                        }
+                        else {
+                            // add the validation exception
+                            if (!e.target.classList.contains("invalid")) {
+                                e.target.classList.toggle("invalid");
+                            }
+                        }
+
+                        // toggle the Provision button accordingly
+                        toggleFormSubmitStatus();
+                    });
+                }
+            }
+
+            // validation events for any regex editor fields
+            var regexEditorControls = document.getElementsByClassName('regexEditor');
+            if (regexEditorControls != null && regexEditorControls.length > 0) {
+                for (var i = 0; i < regexEditorControls.length; i++) {
+                    regexEditorControls[i].addEventListener('keyup', function (e) {
+                        if (regexIsValid(e.target.value, e.target.dataset.regex)) {
+                            // remove the validation exception, if any
+                            if (e.target.classList.contains("invalid")) {
+                                e.target.classList.toggle("invalid");
+                            }
+                        }
+                        else {
+                            // add the validation exception
+                            if (!e.target.classList.contains("invalid")) {
+                                e.target.classList.toggle("invalid");
+                            }
+                        }
+
+                        // toggle the Provision button accordingly
+                        toggleFormSubmitStatus();
+                    });
+                }
+            }
+
+            // validation events for SelectedTheme field
+            var selectedTheme = document.getElementById('@Html.IdFor(m => m.SelectedTheme)');
+            if (selectedTheme) {
+                selectedTheme.addEventListener('change', function (e) {
+                    // cleanup validation exceptions
+                    if (e.target.classList.contains("invalid")) {
+                        e.target.classList.toggle("invalid");
+                    }
+
+                    // check the Selected Theme
+                    if (getFieldValue(e.target) == '********') {
+                        if (!e.target.classList.contains("invalid")) {
+                            e.target.classList.toggle("invalid");
+                        }
+                    }
+
+                    // toggle the Provision button accordingly
+                    toggleFormSubmitStatus();
+                });
+            }
+
+            // validation events for ApplyTheme toggle
+            var toggleApplyTheme = document.getElementById('@(Html.IdFor(m => m.ApplyTheme))Div');
+            if (toggleApplyTheme) {
+                toggleApplyTheme.addEventListener('click', function () {
+                    // toggle the Provision button accordingly
+                    toggleFormSubmitStatus();
+                });
+            }
+
+            // cleanup any validation exception if keypress happens on the target field
+            var formFields = document.getElementsByClassName('pnp-tb');
+            for (var i = 0; i < formFields.length; i++) {
+                formFields[i].addEventListener('keypress', function (e) {
+                    if (e.target &&
+                        !e.target.classList.contains('regexEditor') &&
+                        !e.target.classList.contains('siteUrl') &&
+                        e.target.value != '') {
+                        if (e.target.classList.contains("invalid")) {
+                            e.target.classList.toggle("invalid");
+                        }
+                    }
+
+                    // toggle the Provision button accordingly
+                    toggleFormSubmitStatus();
+                });
+            }
+
+            // set initial state for the form
+            toggleFormSubmitStatus();
+
+            // set initial state for Theme fields
+            var selectedTheme = document.getElementsByName('@Html.IdFor(m => m.SelectedTheme)');
+            if (selectedTheme && selectedTheme.length > 0) {
+                disableField(selectedTheme[0]);
+            }
+            @*var toggleApplyCustomTheme = document.getElementById('@(Html.IdFor(m => m.ApplyCustomTheme))Div');
+            if (toggleApplyCustomTheme) {
+                disableToggle(toggleApplyCustomTheme);
+            }
+            var themePrimaryColor = document.getElementsByName('@Html.IdFor(m => m.ThemePrimaryColor)');
+            if (themePrimaryColor && themePrimaryColor.length > 0) {
+                disableField(themePrimaryColor[0]);
+            }
+            var themeBodyTextColor = document.getElementsByName('@Html.IdFor(m => m.ThemeBodyTextColor)');
+            if (themeBodyTextColor && themeBodyTextColor.length > 0) {
+                disableField(themeBodyTextColor[0]);
+            }
+            var themeBodyBackgroundColor = document.getElementsByName('@Html.IdFor(m => m.ThemeBodyBackgroundColor)');
+            if (themeBodyBackgroundColor && themeBodyBackgroundColor.length > 0) {
+                disableField(themeBodyBackgroundColor[0]);
+            }*@
+
+            // handles the click event of the provisionButton
+            var provisionButton = document.getElementById('provisionButton');
+            if (provisionButton) {
+                provisionButton.addEventListener('click', function (e) {
+
+                    // stop event propagation
+                    e.stopPropagation();
+
+                    // validate form
+                    var isValid = formIsValid();
+
+                    if (isValid) {
+                        // verify if the package can be provisioned onto the target tenant/site
+                        canProvisionPackage();
+                    }
+
+                    return (false);
+                });
+            }
+
+            // handles the click event of the cancelButton
+            var cancelButton = document.getElementById('cancelButton');
+            if (cancelButton) {
+                cancelButton.addEventListener('click', function (e) {
+                    // redirects the browser to the home page of the Provisioning Service
+                    e.stopPropagation();
+                    location.href = '@((ViewBag.HeaderData != null && !String.IsNullOrEmpty(ViewBag.HeaderData.RootSiteUrl)) ? ViewBag.HeaderData.RootSiteUrl : "/")';
+                    return (false);
+                });
+            }
+
+            // handles the click event of the confirmDialog button
+            var confirmDialogButton = document.getElementById('confirmDialog');
+            if (confirmDialogButton) {
+                confirmDialogButton.addEventListener('click', function (e) {
+                    document.forms[0].submit();
+                });
+            }
+
+            // handles the click event of the cancelDialog button
+            var cancelDialogButton = document.getElementById('cancelDialog');
+            if (cancelDialogButton) {
+                cancelDialogButton.addEventListener('click', function (e) {
+                    var confirmationDialog = document.getElementById('confirmationDialog');
+                    if (confirmationDialog && confirmationDialog.classList.contains("show")) {
+                        confirmationDialog.classList.toggle("show");
+                        confirmationDialog.classList.toggle("hide");
+
+                        hideDialogOverlay();
+                    }
+                });
+            }
+
+            // handles the click event of the acknowledgeDialog button
+            var acknowledgeDialogButton = document.getElementById('acknowledgeDialog');
+            if (acknowledgeDialogButton) {
+                acknowledgeDialogButton.addEventListener('click', function (e) {
+                    var missingPreReqsDialog = document.getElementById('missingPreReqsDialog');
+                    if (missingPreReqsDialog && missingPreReqsDialog.classList.contains("show")) {
+                        missingPreReqsDialog.classList.toggle("show");
+                        missingPreReqsDialog.classList.toggle("hide");
+
+                        hideDialogOverlay();
+                    }
+                });
+            }
+
+            // handles the click event of the okDialogButton button
+            var siteExistsConfirmDialog = document.getElementById('siteExistsConfirmDialog');
+            if (siteExistsConfirmDialog) {
+                siteExistsConfirmDialog.addEventListener('click', function (e) {
+                    var siteExistsDialog = document.getElementById('siteExistsDialog');
+                    if (siteExistsDialog && siteExistsDialog.classList.contains("show")) {
+                        siteExistsDialog.classList.toggle("show");
+                        siteExistsDialog.classList.toggle("hide");
+
+                        hideDialogOverlay();
+
+                        // if the user clicked on the Provision button
+                        if (focusingOutToProvision && forceSiteExists) {
+                            // reset the focusing out
+                            focusingOutToProvision = false;
+                            forceSiteExists = false;
+
+                            // try to start the actual provisioning
+                            var provisionButton = document.getElementById('provisionButton');
+                            if (provisionButton != null) {
+                                provisionButton.click();
+                            }
+                        }
+                    }
+                });
+            }
+
+            // handles the click event of the okDialogButton button
+            var siteExistsCancelDialogButton = document.getElementById('siteExistsCancelDialog');
+            if (siteExistsCancelDialogButton) {
+                siteExistsCancelDialogButton.addEventListener('click', function (e) {
+                    var siteExistsDialog = document.getElementById('siteExistsDialog');
+                    if (siteExistsDialog && siteExistsDialog.classList.contains("show")) {
+                        siteExistsDialog.classList.toggle("show");
+                        siteExistsDialog.classList.toggle("hide");
+
+                        hideDialogOverlay();
+                    }
+                });
+            }
+
+            // handles the toggle event of the ApplyTheme toggle control
+            var toggleApplyTheme = document.getElementById('@(Html.IdFor(m => m.ApplyTheme))Div');
+            if (toggleApplyTheme) {
+                toggleApplyTheme.addEventListener('toggleClicked', function (e) {
+
+                    // get a reference to the Theme fields
+                    var selectedTheme = document.getElementsByName('@Html.IdFor(m => m.SelectedTheme)')[0];
+                    @*var toggleApplyCustomTheme = document.getElementById('@(Html.IdFor(m => m.ApplyCustomTheme))Div');
+                    var themePrimaryColor = document.getElementsByName('@Html.IdFor(m => m.ThemePrimaryColor)')[0];
+                    var themeBodyTextColor = document.getElementsByName('@Html.IdFor(m => m.ThemeBodyTextColor)')[0];
+                    var themeBodyBackgroundColor = document.getElementsByName('@Html.IdFor(m => m.ThemeBodyBackgroundColor)')[0];*@
+
+                    // if the Apply Theme toggle is enabled
+                    if (toggleIsSelected(e.target)) {
+                        // set Theme fields state accordingly
+                        enableField(selectedTheme);
+                        //enableToggle(toggleApplyCustomTheme);
+                        //disableField(themePrimaryColor);
+                        //disableField(themeBodyTextColor);
+                        //disableField(themeBodyBackgroundColor);
+                    }
+                    else {
+                        // set Theme fields state accordingly
+                        disableField(selectedTheme);
+                        //if (toggleIsSelected(toggleApplyCustomTheme)) {
+                        //    toggleState(toggleApplyCustomTheme, false);
+                        //}
+                        //disableToggle(toggleApplyCustomTheme);
+                        //disableField(themePrimaryColor);
+                        //disableField(themeBodyTextColor);
+                        //disableField(themeBodyBackgroundColor);
+                    }
+                });
+            }
+
+            @*var toggleApplyCustomTheme = document.getElementById('@(Html.IdFor(m => m.ApplyCustomTheme))Div');
+            if (toggleApplyCustomTheme) {
+                toggleApplyCustomTheme.addEventListener('toggleClicked', function (e) {
+
+                    // get a reference to the Theme fields
+                    var selectedTheme = document.getElementsByName('@Html.IdFor(m => m.SelectedTheme)')[0];
+                    var toggleApplyCustomTheme = document.getElementById('@(Html.IdFor(m => m.ApplyCustomTheme))Div');
+                    var themePrimaryColor = document.getElementsByName('@Html.IdFor(m => m.ThemePrimaryColor)')[0];
+                    var themeBodyTextColor = document.getElementsByName('@Html.IdFor(m => m.ThemeBodyTextColor)')[0];
+                    var themeBodyBackgroundColor = document.getElementsByName('@Html.IdFor(m => m.ThemeBodyBackgroundColor)')[0];
+
+                    // if the Apply Theme toggle is enabled
+                    if (toggleIsSelected(e.target)) {
+                        // set Theme fields state accordingly
+                        disableField(selectedTheme);
+                        enableField(themePrimaryColor);
+                        enableField(themeBodyTextColor);
+                        enableField(themeBodyBackgroundColor);
+                    }
+                    else {
+                        // set Theme fields state accordingly
+                        enableField(selectedTheme);
+                        disableField(themePrimaryColor);
+                        disableField(themeBodyTextColor);
+                        disableField(themeBodyBackgroundColor);
+                    }
+                });
+            }*@
+        });
+
+</script>
+}
+
+<img src="https://telemetry.sharepointpnp.com/provisioning-service/provisioning-page" />
+
